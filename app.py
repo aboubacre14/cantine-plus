@@ -71,96 +71,95 @@ st.markdown("# 🥗 SmartCanteen – IA Anti-Gaspillage")
 st.markdown("#### Plateforme intelligente de réduction du gaspillage alimentaire")
 st.divider()
 
-# ── Modules cards ─────────────────────────────────────────────
+# ── CSS boutons de navigation ──────────────────────────────────
+st.markdown("""
+<style>
+.card {
+    background: white; border-radius: 16px; padding: 1.2rem 1.5rem 0.6rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 0.3rem;
+    transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.13); }
+.card h3 { margin-top: 0; font-size: 1.05rem; }
+.card p  { color: #555; font-size: 0.88rem; margin-bottom: 0.3rem; }
+/* Stylise tous les st.page_link comme des boutons de carte */
+[data-testid="stPageLink"] a {
+    display: block; width: 100%; text-align: center;
+    background: #F5F5F5; border-radius: 10px;
+    padding: 0.45rem 0; font-weight: 600; font-size: 0.88rem;
+    color: #333 !important; text-decoration: none;
+    transition: background 0.2s;
+}
+[data-testid="stPageLink"] a:hover { background: #E8F5E9; color: #2E7D32 !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── Modules cards ──────────────────────────────────────────────
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #4CAF50;'>
-        <h3 style='color:#2E7D32; margin-top:0'>📊 Dashboard Cantine</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Vue d'ensemble : KPIs, taux de gaspillage, participation et recommandations IA.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #4CAF50'>
+        <h3 style='color:#2E7D32'>📊 Dashboard Cantine</h3>
+        <p>Vue d'ensemble : KPIs, taux de gaspillage, participation et recommandations IA.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/1_dashboard.py", label="→ Accéder", use_container_width=True)
 
 with col2:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #FF9800;'>
-        <h3 style='color:#E65100; margin-top:0'>📈 Analytique</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Analyse des tendances, popularité des plats, empreinte CO₂ et économies réalisées.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #FF9800'>
+        <h3 style='color:#E65100'>📈 Analytique</h3>
+        <p>Analyse des tendances, popularité des plats, empreinte CO₂ et économies réalisées.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/2_analytics.py", label="→ Accéder", use_container_width=True)
 
 with col3:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #2196F3;'>
-        <h3 style='color:#1565C0; margin-top:0'>🍽️ Gestion Menus</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Planification multi-semaines avec scores de popularité et risque de gaspillage.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #2196F3'>
+        <h3 style='color:#1565C0'>🍽️ Gestion Menus</h3>
+        <p>Planification multi-semaines avec scores de popularité et risque de gaspillage.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/3_menus.py", label="→ Accéder", use_container_width=True)
 
 st.divider()
 
 col4, col5, col6 = st.columns(3)
 
 with col4:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #9C27B0;'>
-        <h3 style='color:#6A1B9A; margin-top:0'>👨‍👩‍👧 Espace Parent</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Profil enfant, menu prévisionnel, votes, présence, préférences et feedback repas.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #9C27B0'>
+        <h3 style='color:#6A1B9A'>👨‍👩‍👧 Espace Parent</h3>
+        <p>Profil enfant, menu prévisionnel, votes, présence, préférences et feedback repas.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/4_parent.py", label="→ Accéder", use_container_width=True)
 
 with col5:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #FF5722;'>
-        <h3 style='color:#BF360C; margin-top:0'>👦 Espace Élève</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Vote emoji, gamification, badges "Héros anti-gaspi" et feedback quotidien.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #FF5722'>
+        <h3 style='color:#BF360C'>👦 Espace Élève</h3>
+        <p>Vote emoji, gamification, badges "Héros anti-gaspi" et feedback quotidien.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/5_eleve.py", label="→ Accéder", use_container_width=True)
 
 with col6:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #607D8B;'>
-        <h3 style='color:#37474F; margin-top:0'>💼 Espace Entreprise</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Réservation, vote, choix de portion et dashboard analytique pour les salariés.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #607D8B'>
+        <h3 style='color:#37474F'>💼 Espace Entreprise</h3>
+        <p>Réservation, vote, choix de portion et dashboard analytique pour les salariés.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/6_entreprise.py", label="→ Accéder", use_container_width=True)
 
 st.divider()
 
 col7, col8 = st.columns(2)
 
 with col7:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #4CAF50;'>
-        <h3 style='color:#2E7D32; margin-top:0'>♻️ Repas Solidaires</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Invendus à prix réduit, déclaration du personnel, QR code de retrait – inspiré Too Good To Go.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #4CAF50'>
+        <h3 style='color:#2E7D32'>♻️ Repas Solidaires</h3>
+        <p>Invendus à prix réduit, déclaration du personnel, QR code de retrait – inspiré Too Good To Go.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/7_invendus.py", label="→ Accéder", use_container_width=True)
 
 with col8:
-    st.markdown("""
-    <div style='background:white; border-radius:16px; padding:1.5rem;
-                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #00BCD4;'>
-        <h3 style='color:#006064; margin-top:0'>🤖 IA Coach Enfant</h3>
-        <p style='color:#555; font-size:0.9rem;'>
-            Analyse le plateau de l'élève et génère un script TTS motivant adapté aux enfants.
-        </p>
+    st.markdown("""<div class='card' style='border-top:4px solid #00BCD4'>
+        <h3 style='color:#006064'>⚡ IA Coach Enfant (Sonic)</h3>
+        <p>Analyse le plateau, génère un message audio style Sonic pour encourager les enfants à manger.</p>
     </div>""", unsafe_allow_html=True)
+    st.page_link("pages/8_ia_coach.py", label="→ Accéder", use_container_width=True)
 
 st.divider()
 
