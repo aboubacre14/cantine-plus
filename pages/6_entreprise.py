@@ -371,7 +371,7 @@ else:
         lambda x: "🟢 Faible" if x < 2 else ("🟡 Moyen" if x < 4 else "🔴 Élevé")
     )
     st.dataframe(
-        df_top_full.style.background_gradient(subset=["Satisfaction (%)"], cmap="Greens"),
+        df_top_full,
         use_container_width=True,
         hide_index=True,
     )

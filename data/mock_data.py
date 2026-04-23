@@ -504,73 +504,117 @@ def categorize_foods(foods: list) -> list:
 
 def generate_ia_coach_analysis(selected_foods: list) -> dict:
     categories = categorize_foods(selected_foods)
-    food_names = [f.lower() for f in selected_foods]
 
-    # Sélection du script selon les catégories détectées
     has_protein = "protéines" in categories
-    has_starch = "féculents" in categories
-    has_veggie = "légumes" in categories
-    has_fruit = "fruits" in categories or "desserts" in categories
+    has_starch  = "féculents" in categories
+    has_veggie  = "légumes" in categories
+    has_fruit   = "fruits" in categories or "desserts" in categories
 
-    mention = " et ".join(selected_foods[:2]) if len(selected_foods) >= 2 else (selected_foods[0] if selected_foods else "ce beau repas")
+    # ── Construire la liste parlée de TOUS les aliments ──────────
+    DESSERT_KEYWORDS = ["compote", "pomme", "kiwi", "banane", "fruit", "orange",
+                        "poire", "yaourt", "crème", "mousse", "tarte", "gâteau"]
+    FRUIT_KEYWORDS   = ["compote", "pomme", "kiwi", "banane", "orange", "poire",
+                        "melon", "fraise", "raisin", "abricot"]
+    PROTEIN_KEYWORDS = ["poulet", "boeuf", "veau", "porc", "dinde", "saumon",
+                        "cabillaud", "thon", "jambon", "oeuf", "omelette", "ravioli"]
+    VEG_KEYWORDS     = ["tomate", "carotte", "haricot", "brocoli", "épinard",
+                        "courgette", "légume", "salade", "basilic", "petits pois"]
+
+    # Sépare plats et desserts pour les citer naturellement
+    plats   = [f for f in selected_foods
+               if not any(k in f.lower() for k in DESSERT_KEYWORDS)]
+    desserts = [f for f in selected_foods
+                if any(k in f.lower() for k in DESSERT_KEYWORDS)]
+
+    def liste_naturelle(items):
+        if not items:       return ""
+        if len(items) == 1: return items[0]
+        return ", ".join(items[:-1]) + f" et {items[-1]}"
+
+    menu_plats   = liste_naturelle(plats)   or liste_naturelle(selected_foods)
+    menu_dessert = liste_naturelle(desserts)
+
+    # Choix du plat "héros" à mettre en avant (protéine ou premier plat)
+    heros = next(
+        (f for f in selected_foods if any(k in f.lower() for k in PROTEIN_KEYWORDS)),
+        selected_foods[0],
+    )
+    # Choix du légume à mettre en avant
+    veggie_star = next(
+        (f for f in selected_foods if any(k in f.lower() for k in VEG_KEYWORDS)),
+        None,
+    )
+
+    dessert_phrase = (
+        f"Et pour finir : {menu_dessert}, un vrai boost de vitamines ! "
+        if menu_dessert else ""
+    )
 
     if has_protein and has_starch and has_veggie:
         script = (
-            f"Super-héros, ton plateau est prêt pour la grande mission ! "
-            f"Avec {mention}, tu fais le plein d'énergie pour courir, apprendre et grandir. "
-            f"C'est un repas complet qui aide ton corps à devenir plus fort chaque jour. "
-            f"Goûte avec courage et continue ta mission de héros !"
+            f"Salut jeune héros ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{heros} te donne la force pour courir plus vite que Sonic. "
+            f"{f'{veggie_star} recharge tes super-pouvoirs. ' if veggie_star else ''}"
+            f"{dessert_phrase}"
+            f"Mission du jour : goûter chaque plat pour devenir imbattable !"
         )
-        voice = "voix de super-héros bienveillant, dynamique, énergique et rassurante"
+        voice = "voix de super-héros énergique, style Sonic le hérisson, dynamique et rassurante"
     elif has_protein and has_starch:
         script = (
-            f"Capitaine, c'est l'heure de faire le plein de force ! "
-            f"{mention.capitalize()} va nourrir tes muscles et te donner de l'énergie pour toute la journée. "
-            f"Chaque bouchée t'aide à courir plus vite et apprendre mieux. "
-            f"Avance comme un vrai héros !"
+            f"Bonjour les héros de la cantine ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{heros} nourrit tes muscles comme un vrai champion. "
+            f"{dessert_phrase}"
+            f"Mission du jour : chaque bouchée te rend plus fort et plus rapide !"
         )
         voice = "voix de capitaine courageux, motivante et chaleureuse"
     elif has_veggie and has_protein:
         script = (
-            f"Explorateur, ton plateau est une vraie boîte à super-pouvoirs ! "
-            f"{mention.capitalize()} te donnent des vitamines et de la force pour toutes tes aventures. "
-            f"Ces couleurs dans ton assiette, c'est de l'énergie pure pour bouger et grandir. "
-            f"Goûte et découvre leur puissance secrète !"
+            f"Salut jeune héros ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{veggie_star or heros} améliore ta vision… parfait pour les missions secrètes ! "
+            f"{heros} te donne la force des aventuriers. "
+            f"{dessert_phrase}"
+            f"Mission du jour : goûter chaque couleur de ton assiette !"
         )
-        voice = "voix d'aventurière maligne et enthousiaste"
+        voice = "voix d'aventurière maligne et enthousiaste, style Sonic"
     elif has_veggie:
         script = (
-            f"Explorateur courageux, ces légumes colorés cachent des trésors de vitamines ! "
-            f"{mention.capitalize()} aide ton corps à rester fort et plein d'énergie. "
-            f"Chaque couleur dans ton assiette est un super-pouvoir différent. "
-            f"Essaie une bouchée et tu verras !"
+            f"Bonjour les héros ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{veggie_star or selected_foods[0]} te donne des super-pouvoirs pour voir loin. "
+            f"{dessert_phrase}"
+            f"Mission du jour : goûter chaque couleur dans ton assiette !"
         )
         voice = "voix d'exploratrice curieuse et encourageante"
     elif has_fruit:
         script = (
-            f"Champion, c'est le moment du coup de boost final ! "
-            f"{mention.capitalize()} apporte une touche fraîche et pleine de vitamines pour finir en beauté. "
-            f"Ton corps te dit merci après un si beau repas. Bravo, héros !"
+            f"Salut champion ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{menu_dessert or selected_foods[0]} apporte des vitamines pour finir ta mission en beauté. "
+            f"Ton corps te dit merci. Bravo, héros !"
         )
         voice = "voix joyeuse et souriante, ton de fin de mission réussie"
     else:
         script = (
-            f"Aventurier, ton repas du jour est là pour t'aider dans ta mission ! "
-            f"Ce beau plateau te donne de l'énergie pour bouger, apprendre et grandir. "
-            f"Chaque bouchée compte. Goûte avec courage et continue ta super aventure !"
+            f"Salut jeune héros ! "
+            f"Aujourd'hui au menu : {menu_plats} ! "
+            f"{dessert_phrase}"
+            f"Ce repas te donne de l'énergie pour bouger, apprendre et grandir. "
+            f"Mission du jour : goûter avec courage et avancer comme un vrai héros !"
         )
         voice = "voix de héros bienveillant, rassurante et positive"
 
-    # Bénéfices selon catégories
     benefits = []
     if has_protein:
-        benefits.append("aide les muscles à grandir et donne de la force")
+        benefits.append("donne la force des aventuriers et aide les muscles à grandir")
     if has_starch:
-        benefits.append("fournit de l'énergie pour courir, jouer et apprendre")
+        benefits.append("recharge l'énergie pour courir, jouer et apprendre")
     if has_veggie:
-        benefits.append("apporte des vitamines pour rester en forme et en bonne santé")
+        benefits.append("améliore la vision et apporte des vitamines essentielles")
     if has_fruit:
-        benefits.append("offre une touche de fraîcheur et un coup de boost naturel")
+        benefits.append("offre un coup de boost naturel pour finir la mission")
     if not benefits:
         benefits = [
             "aide à grandir et rester en forme",
@@ -578,7 +622,6 @@ def generate_ia_coach_analysis(selected_foods: list) -> dict:
             "soutient la concentration et la bonne humeur",
         ]
 
-    # Résumé
     if selected_foods:
         food_summary = f"Plateau de cantine composé de {', '.join(selected_foods[:3])}."
         if len(categories) >= 3:
@@ -586,7 +629,7 @@ def generate_ia_coach_analysis(selected_foods: list) -> dict:
     else:
         food_summary = "Plateau de cantine avec plusieurs éléments nutritifs identifiés."
 
-    confidence = min(0.95, 0.45 + len(selected_foods) * 0.08)
+    confidence = min(0.99, 0.75 + len(categories) * 0.05 + min(len(selected_foods), 4) * 0.03)
 
     return {
         "detected_foods": selected_foods,
