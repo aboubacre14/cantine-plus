@@ -121,6 +121,96 @@ def generate_audio(text: str, eleven_key: str = "", voice_id: str = ELEVEN_VOICE
     return None
 
 
+def detect_foods_mistral(image_bytes: bytes, api_key: str, mime: str = "image/jpeg") -> list:
+    """
+    Envoie l'image à Mistral Pixtral-12B et retourne la liste des aliments détectés.
+    """
+    b64 = base64.b64encode(image_bytes).decode()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": "pixtral-12b-2409",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "Tu es un expert en nutrition scolaire qui analyse des plateaux de cantine. "
+                            "Analyse cette image EN SUIVANT CET ORDRE STRICT :\n"
+                            "1. Assiette principale : liste TOUS les aliments qu'elle contient (viande, légumes, féculents, sauce, garniture)\n"
+                            "2. Bol ou ramequin : liste TOUS les aliments qu'il contient\n"
+                            "3. Pain ou viennoiserie : nomme-le\n"
+                            "4. Fruit : nomme-le\n"
+                            "5. Produit laitier (yaourt, fromage, crème) : nomme-le\n"
+                            "6. Boisson : nomme-la\n"
+                            "Termine un contenant complètement avant de passer au suivant. "
+                            "Ne saute aucun aliment visible, même les sauces, herbes ou garnitures. "
+                            "Utilise des noms simples et courants en français (ex: 'Poulet rôti', 'Haricots verts', 'Purée de carottes'). "
+                            "Réponds UNIQUEMENT avec un tableau JSON à plat, sans catégories, sans explication. "
+                            "Format : [\"Aliment 1\", \"Aliment 2\", ...]"
+                        ),
+                    },
+                ],
+            }
+        ],
+        "max_tokens": 600,
+        "temperature": 0.1,
+    }
+    try:
+        resp = _requests.post(
+            "https://api.mistral.ai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            content = resp.json()["choices"][0]["message"]["content"]
+            import re
+
+            # 1. Chercher un tableau JSON dans la réponse (multi-lignes)
+            match = re.search(r"\[[\s\S]*?\]", content)
+            if match:
+                raw = match.group()
+                # Nettoyer les problèmes courants de JSON
+                raw = re.sub(r",\s*\]", "]", raw)       # virgule finale
+                raw = re.sub(r"[\n\r\t]", " ", raw)     # retours à la ligne
+                raw = re.sub(r"\s{2,}", " ", raw)        # espaces multiples
+                try:
+                    foods = json.loads(raw)
+                    return [str(f).strip() for f in foods if str(f).strip()]
+                except Exception:
+                    pass
+
+            # 2. Extraire toutes les chaînes entre guillemets
+            items = re.findall(r'"([^"]{2,50})"', content)
+            if items:
+                return items
+
+            # 3. Extraire ligne par ligne (liste à tirets ou numérotée)
+            lines = []
+            for line in content.split("\n"):
+                line = re.sub(r"^[\s\-\*\d\.]+", "", line).strip().strip('",')
+                if 2 < len(line) < 60:
+                    lines.append(line)
+            return lines if lines else []
+        else:
+            # Stocker l'erreur dans session pour affichage
+            import streamlit as st
+            st.session_state["mistral_error"] = f"Erreur {resp.status_code}: {resp.text[:200]}"
+    except Exception as e:
+        import streamlit as st
+        st.session_state["mistral_error"] = str(e)
+    return []
+
+
 def audio_player(audio_bytes: bytes) -> str:
     """Lecteur base64 — fonctionne sur iOS Safari et Android Chrome."""
     b64 = base64.b64encode(audio_bytes).decode()
@@ -196,6 +286,21 @@ for key in ("analyse_result", "uploaded_image_name", "audio_bytes"):
 with st.sidebar:
     st.markdown("## ⚡ IA Coach Enfant")
     st.divider()
+
+    st.markdown("**🔑 Clé API Mistral**")
+    st.caption("Pour détecter les aliments depuis une photo.")
+    mistral_key = st.text_input(
+        "Clé Mistral AI",
+        type="password",
+        placeholder="...",
+        key="mistral_key",
+    )
+    if mistral_key.strip():
+        st.success("✅ Détection IA activée (Pixtral-12B)")
+    else:
+        st.info("Sans clé → détection simulée")
+
+    st.divider()
     eleven_key = ""
     voice_id   = ELEVEN_VOICE
     if st.button("🗑️ Réinitialiser", use_container_width=True):
@@ -229,27 +334,45 @@ with tab1:
         )
 
         if uploaded:
-            st.image(uploaded, caption="Plateau analysé", use_container_width=True)
+            # Lire les bytes EN PREMIER avant tout affichage
+            img_bytes = uploaded.read()
+            st.image(img_bytes, caption="Plateau analysé", use_container_width=True)
 
             if uploaded.name != st.session_state.uploaded_image_name:
                 st.session_state.uploaded_image_name = uploaded.name
                 st.session_state.analyse_result = None
                 st.session_state.audio_bytes = None
 
-                with st.spinner("🔍 Détection des aliments en cours..."):
-                    import time; time.sleep(0.8)
-                    detected = simulate_food_detection(uploaded)
-
-                for k, v in detected.items():
-                    st.session_state[k] = v
-
-                total = sum(len(v) for v in detected.values())
-                st.markdown(f"""
-                <div class='detect-badge'>
-                    ✅ <b>{total} aliments détectés automatiquement</b> —
-                    vérifiez ci-contre puis cliquez <b>Analyser</b> !
-                </div>
-                """, unsafe_allow_html=True)
+                if mistral_key.strip():
+                    with st.spinner("🤖 Pixtral analyse l'image..."):
+                        mime = "image/png" if uploaded.name.lower().endswith(".png") else "image/jpeg"
+                        foods = detect_foods_mistral(img_bytes, mistral_key.strip(), mime)
+                    if foods:
+                        st.session_state.custom_foods = foods
+                        for k in ("sel_prot", "sel_leg", "sel_fec", "sel_fruits", "sel_autres"):
+                            st.session_state[k] = []
+                        st.markdown(f"""
+                        <div class='detect-badge'>
+                            🤖 <b>Pixtral a détecté {len(foods)} aliment(s) :</b>
+                            {", ".join(foods)}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        err = st.session_state.pop("mistral_error", "")
+                        st.error(f"⚠️ Pixtral n'a pas pu détecter les aliments.\n\n`{err}`" if err else "⚠️ Détection échouée — vérifiez la clé API.")
+                else:
+                    with st.spinner("🔍 Détection simulée en cours..."):
+                        import time; time.sleep(0.8)
+                        detected = simulate_food_detection(uploaded)
+                    for k, v in detected.items():
+                        st.session_state[k] = v
+                    total = sum(len(v) for v in detected.values())
+                    st.markdown(f"""
+                    <div class='detect-badge'>
+                        ✅ <b>{total} aliments détectés (simulation)</b> —
+                        vérifiez ci-contre puis cliquez <b>Analyser</b> !
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
                 st.markdown("""
                 <div style='background:#E0F7FA; border-radius:12px; padding:0.8rem;
@@ -273,72 +396,30 @@ with tab1:
             """, unsafe_allow_html=True)
 
     with col_select:
-        st.markdown("### 🥗 Aliments du menu")
-        st.caption("Tapez n'importe quel aliment ou choisissez dans les listes.")
+        st.markdown("### 🥗 Aliments détectés")
 
-        # ── Saisie libre ─────────────────────────────────────────
         if "custom_foods" not in st.session_state:
             st.session_state.custom_foods = []
 
-        col_input, col_add = st.columns([4, 1])
-        with col_input:
-            new_food = st.text_input(
-                "Ajouter un aliment",
-                placeholder="Ex: Ravioli au Saumon, Tarte Tomate...",
-                label_visibility="collapsed",
-                key="new_food_input",
-            )
-        with col_add:
-            if st.button("➕ Ajouter", use_container_width=True):
-                food_clean = new_food.strip().title()
-                if food_clean and food_clean not in st.session_state.custom_foods:
-                    st.session_state.custom_foods.append(food_clean)
-                    st.rerun()
-
-        # Affichage + suppression des aliments saisis librement
-        if st.session_state.custom_foods:
-            st.markdown("**Aliments saisis :**")
-            cols = st.columns(2)
-            for i, food in enumerate(st.session_state.custom_foods):
-                with cols[i % 2]:
-                    if st.button(f"✕ {food}", key=f"del_{i}", use_container_width=True):
-                        st.session_state.custom_foods.pop(i)
-                        st.rerun()
-
-        st.divider()
-
-        # ── Listes prédéfinies (optionnelles) ────────────────────
-        with st.expander("📋 Ajouter depuis les listes prédéfinies"):
-            sel_proteines = st.multiselect("🥩 Protéines",  FOOD_CATEGORIES["protéines"], key="sel_prot")
-            sel_legumes   = st.multiselect("🥦 Légumes",    FOOD_CATEGORIES["légumes"],   key="sel_leg")
-            sel_feculents = st.multiselect("🍝 Féculents",  FOOD_CATEGORIES["féculents"], key="sel_fec")
-            sel_fruits    = st.multiselect(
-                "🍎 Fruits & Desserts",
-                FOOD_CATEGORIES["fruits"] + FOOD_CATEGORIES["desserts"],
-                key="sel_fruits",
-            )
-            sel_autres = st.multiselect(
-                "🥛 Autres",
-                FOOD_CATEGORIES["produits_laitiers"] + ["Pain", "Beurre", "Eau"],
-                key="sel_autres",
-            )
-
-        # Fusion saisie libre + listes
-        all_selected = (
-            st.session_state.custom_foods
-            + sel_proteines + sel_legumes + sel_feculents + sel_fruits + sel_autres
-        )
-        # Dédoublonnage
+        all_selected = st.session_state.custom_foods
         seen = set()
         all_selected = [x for x in all_selected if not (x in seen or seen.add(x))]
 
         if all_selected:
             st.markdown(f"""
-            <div style='background:#E0F7FA; border-radius:10px; padding:0.6rem 1rem; margin-top:0.5rem;'>
-                <small style='color:#006064'>
-                    <b>{len(all_selected)} aliment(s) au total :</b>
-                    {", ".join(all_selected)}
-                </small>
+            <div style='background:#E0F7FA; border-radius:10px; padding:0.8rem 1rem; margin-top:0.5rem;'>
+                <b style='color:#006064'>🤖 {len(all_selected)} aliment(s) détecté(s) :</b><br>
+                <span style='color:#006064; font-size:0.9rem'>{", ".join(all_selected)}</span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style='background:white; border-radius:12px; padding:1.5rem;
+                        text-align:center; border:2px dashed #B2EBF2;'>
+                <div style='font-size:2rem'>📷</div>
+                <p style='color:#888; font-size:0.9rem; margin:0.3rem 0'>
+                    Uploadez une photo — les aliments seront détectés automatiquement
+                </p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -346,7 +427,7 @@ with tab1:
 
         can_analyse = len(all_selected) > 0
         if not can_analyse:
-            st.caption("⚠️ Tapez au moins un aliment ci-dessus.")
+            st.caption("⚠️ Uploadez une photo pour détecter les aliments.")
 
         vid = voice_id if "voice_id" in dir() else ELEVEN_VOICE
         if st.button("⚡ Analyser le plateau", type="primary",
